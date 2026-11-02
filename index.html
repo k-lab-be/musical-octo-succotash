@@ -28,11 +28,15 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-html,body{min-height:100%}
-body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.4;margin:0;padding:0 0 120px;
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.4;margin:0;padding:0;
   background-image:radial-gradient(120% 40% at 50% -5%,rgba(0,99,142,.30),transparent 70%);background-repeat:no-repeat}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:30}
-.wrap{width:100%;max-width:768px;margin:0 auto;padding:0}
+.wrap{width:100%;max-width:768px;margin:0 auto;padding:env(safe-area-inset-top,0px) 0 0;height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+#app{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:calc(120px + env(safe-area-inset-bottom,0px))}
+#head{flex:none}
+body.kb .tabs{display:none}
+body.kb #app{padding-bottom:40px}
 #head,#app{display:block;padding-left:max(var(--gutter),env(safe-area-inset-left,0px));padding-right:max(var(--gutter),env(safe-area-inset-right,0px))}
 .ver{padding:24px;text-align:center;font-size:.75rem;color:var(--ink-3)}
 body{overflow-x:clip}
@@ -51,7 +55,7 @@ a{color:var(--blue-2)}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--blue-2);outline-offset:2px}
-.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;padding:22px 0 12px;background:linear-gradient(var(--bg) 70%,transparent)}
+.top{flex:none;position:relative;z-index:20;padding:14px 0 8px;background:var(--bg)}
 .top-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
 .weeknav{display:flex;align-items:center;gap:8px}
 .circ{width:44px;height:44px;border-radius:50%;border:0;background:var(--surface-2);display:grid;place-items:center;font-size:1.4rem;line-height:1}
@@ -101,7 +105,7 @@ section.view{padding-top:6px;display:flex;flex-direction:column;gap:var(--gap)}
 .ring .bg{stroke:rgba(255,255,255,.22)}
 .ring .fg{stroke:#fff}
 .ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:1.0625rem;font-weight:800}
-.strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;position:sticky;top:0;z-index:5;background:var(--bg);padding:4px 0 8px}
 .dchip{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 9px;border:0;background:var(--surface);border-radius:99px;min-height:84px;color:var(--ink)}
 .dchip span:first-child{font-size:.6875rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
 .dchip b{font-size:1.25rem;line-height:1;font-weight:800}
@@ -191,7 +195,6 @@ section.view{padding-top:6px;display:flex;flex-direction:column;gap:var(--gap)}
 <div class="wrap" id="root">
   <header class="top"><div id="head"></div></header>
   <main id="app" aria-live="polite"></main>
-  <p class="ver">Versie 7 &middot; <button class="link" data-act="logout">Uitloggen</button></p>
 </div>
 <nav class="tabs" aria-label="Hoofdmenu"><div class="tabs-in" id="tabs"></div></nav>
 <div class="toast" id="toast" role="status"></div>
@@ -346,6 +349,9 @@ function renderHead(w){
    +'<div class="meta-row"><span class="sync" id="sync"></span><span class="spacer"></span>'+(S.today!==real?'<button class="link" data-act="today-reset">echte datum</button>':'')+'<input type="date" id="todayIn" aria-label="Vandaag is (datum aanpassen)" value="'+esc(S.today)+'"></div>';
   setSync();
 }
+function toTop(){var a=$('#app');if(a)a.scrollTop=0}
+document.addEventListener('focusin',function(e){if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)&&e.target.type!=='checkbox')document.body.classList.add('kb')});
+document.addEventListener('focusout',function(){setTimeout(function(){var a=document.activeElement;if(!a||!/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))document.body.classList.remove('kb')},150)});
 function render(){
   S.dirty=false;
   var w=curWeek();
@@ -361,7 +367,7 @@ function render(){
     else if(S.tab==='body')html=viewBody(w);
     else html=viewFood(w);
   }
-  $('#app').innerHTML=html;
+  $('#app').innerHTML=html+'<p class="ver">Versie 8 &middot; <button class="link" data-act="logout">Uitloggen</button></p>';
   hydrate();
 }
 function srcTag(s){return '<span class="tag '+esc(s.src)+'">'+(s.src==='dts'?'DTS':s.src==='gym'?'Gym':'Eigen')+'</span>'}
@@ -401,7 +407,7 @@ function viewToday(w){
   var banner=pend?'<div class="banner"><span>'+pend+(pend===1?' training':' trainingen')+' niet gedaan of niet ingevuld. Wil je de rest van de week aanpassen?</span><button class="btn sm primary" data-act="plan-open">Bekijk voorstel</button></div>':'';
   var todays=sess.filter(function(s){return s.day===S.day}),real=todays.filter(function(s){return s.kind!=='rest'}),done=real.filter(function(s){return s.status==='done'}).length;
   var hero='<div class="hero"><div><p class="eyebrow">'+(S.day===S.today?'Vandaag':esc(fmtLong(S.day)))+'</p><div class="big num">'+(real.length||'Rust')+'</div><p style="font-weight:700;margin-top:4px">'+(real.length?(real.length===1?'training':'trainingen'):'geen training gepland')+'</p><div class="chips">'+todays.map(function(s){return '<span class="chip">'+esc(s.title)+'</span>'}).join('')+'</div></div>'+(real.length?ring(done,real.length):'')+'</div>';
-  var cards=todays.length?todays.map(function(s){return sessionCard(w,s)}).join(''):'<div class="card empty"><h3>Niets gepland</h3><p>Voor '+fmtShort(S.day)+' staat niets in je schema. Je kan elke training hier naartoe verplaatsen.</p></div>';
+  var cards=todays.length?todays.map(function(s){return sessionCard(w,s)}).join(''):'<div class="card empty"><h3>'+(isBlocked(w,S.day)?'Niet beschikbaar':'Niets gepland')+'</h3><p>'+(isBlocked(w,S.day)?fmtShort(S.day)+' staat als niet beschikbaar. Trainingen van deze dag zijn verplaatst of wachten op een voorstel. Je kan dit wijzigen in het tabblad Week.':'Voor '+fmtShort(S.day)+' staat niets in je schema. Je kan elke training hier naartoe verplaatsen.')+'</p></div>';
   var blocked='<label class="check"><input type="checkbox" data-blocked="'+S.day+'"'+(isBlocked(w,S.day)?' checked':'')+'> '+fmtShort(S.day)+' is niet beschikbaar (werk, reizen, ziek)</label>';
   var focus=w.focus?'<p class="muted small">'+esc(w.focus)+'</p>':'';
   return '<section class="view">'+inboxCards()+strip+banner+hero+cards+focus+'</section>';
@@ -512,7 +518,7 @@ function setStatus(w,sid,v){var m={};m[sid]=v;return save('plan',w.id,{status:m}
 document.addEventListener('click',function(ev){
   var el=ev.target.closest('[data-act]');if(!el)return;
   var a=el.getAttribute('data-act'),w=curWeek();
-  if(a==='tab'){S.tab=el.getAttribute('data-t');S.proposal=null;render();window.scrollTo(0,0);return}
+  if(a==='tab'){S.tab=el.getAttribute('data-t');S.proposal=null;render();toTop();return}
   if(a==='day'){S.day=el.getAttribute('data-d');render();return}
   if(a==='wk'){var ws=weeksSorted(),i=ws.map(function(x){return x.id}).indexOf(w.id)+Number(el.getAttribute('data-n'));if(ws[i]){S.weekId=ws[i].id;S.day=null;S.proposal=null;render()}return}
   if(a==='today-reset'){S.today=realToday();ls('dst.today',null);S.day=null;render();return}
@@ -523,7 +529,7 @@ document.addEventListener('click',function(ev){
   if(!w)return;
   if(a==='status'){setStatus(w,el.getAttribute('data-sid'),el.getAttribute('data-v'));schedule();return}
   if(a==='cycle'){var cur=el.getAttribute('data-v'),nx={'':'done',done:'skipped',skipped:'dropped',dropped:''}[cur];setStatus(w,el.getAttribute('data-sid'),nx);schedule();return}
-  if(a==='plan-open'){S.tab='week';S.proposal=propose(w,sessionsOf(w));render();window.scrollTo(0,0);return}
+  if(a==='plan-open'){S.tab='week';S.proposal=propose(w,sessionsOf(w));render();toTop();return}
   if(a==='prop-close'){S.proposal=null;render();return}
   if(a==='prop-apply'||a==='prop-all'){
     var P=S.proposal||[],idx=a==='prop-all'?P.map(function(_,i){return i}):[Number(el.getAttribute('data-i'))];
@@ -544,7 +550,7 @@ document.addEventListener('click',function(ev){
     if(!items.length)items=[{id:'i0',name:'Notitie',target:''}];
     var c={id:'c-'+Date.now().toString(36),title:t,day:$('#cDay').value,kind:'custom',key:false,load:Number($('#cLoad').value)||2,tags:[],items:items};
     save('plan',w.id,{custom:(planOf(w).custom||[]).concat([c])});S.customOpen=false;schedule();return}
-  if(a==='bodydate'){S.bodyDate=el.getAttribute('data-d');render();window.scrollTo(0,0);return}
+  if(a==='bodydate'){S.bodyDate=el.getAttribute('data-d');render();toTop();return}
   if(a==='fooddate'){var d=el.getAttribute('data-d');if(!d)d=addDays(S.foodDate||S.today,Number(el.getAttribute('data-n')));S.foodDate=d;render();return}
   if(a==='del'){
     var cid=el.getAttribute('data-cid');
