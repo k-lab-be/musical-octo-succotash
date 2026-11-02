@@ -1,8 +1,8 @@
-// Zet de app offline klaar: eerst uit de opslag, op de achtergrond vernieuwen.
-const V = 'dst-v8';
+// Zet de app offline klaar. Eerst het netwerk (nieuwste versie), pas bij geen of traag netwerk de opgeslagen kopie.
+const V = 'dst-v9';
 const SHELL = ['./', 'index.html', 'config.js', 'manifest.webmanifest', 'icon-192.png'];
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(V).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -14,15 +14,18 @@ self.addEventListener('fetch', e => {
   // Gegevens, inloggen en foto's nooit uit de opslag van de app
   if (url.hostname.endsWith('.supabase.co')) return;
   const sameOrigin = url.origin === location.origin;
-  const fontHost = ['fonts.googleapis.com','fonts.gstatic.com','cdn.jsdelivr.net'].includes(url.hostname);
-  if (!sameOrigin && !fontHost) return;
+  const libHost = ['fonts.googleapis.com','fonts.gstatic.com','cdn.jsdelivr.net'].includes(url.hostname);
+  if (!sameOrigin && !libHost) return;
   e.respondWith(caches.open(V).then(async cache => {
     const hit = await cache.match(req, { ignoreSearch: true });
-    const net = fetch(req).then(res => { if (res && res.ok) cache.put(req, res.clone()); return res; }).catch(() => null);
-    if (hit) { e.waitUntil(net); return hit; }
-    const res = await net;
-    if (res) return res;
-    if (req.mode === 'navigate') { const idx = await cache.match('index.html'); if (idx) return idx; }
-    return new Response('', { status: 504 });
+    if (!sameOrigin && hit) return hit;
+    const net = fetch(req, sameOrigin ? { cache: 'no-cache' } : undefined).then(res => { if (res && res.ok) cache.put(req, res.clone()); return res; });
+    if (!hit) {
+      try { return await net; } catch (_) {}
+      if (req.mode === 'navigate') { const idx = await cache.match('index.html'); if (idx) return idx; }
+      return new Response('', { status: 504 });
+    }
+    e.waitUntil(net.catch(() => null));
+    return Promise.race([net.catch(() => hit), new Promise(r => setTimeout(() => r(hit), 3000))]);
   }));
 });

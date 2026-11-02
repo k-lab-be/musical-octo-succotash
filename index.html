@@ -367,7 +367,7 @@ function render(){
     else if(S.tab==='body')html=viewBody(w);
     else html=viewFood(w);
   }
-  $('#app').innerHTML=html+'<p class="ver">Versie 8 &middot; <button class="link" data-act="logout">Uitloggen</button></p>';
+  $('#app').innerHTML=html+'<p class="ver">Versie 9 &middot; <button class="link" data-act="logout">Uitloggen</button></p>';
   hydrate();
 }
 function srcTag(s){return '<span class="tag '+esc(s.src)+'">'+(s.src==='dts'?'DTS':s.src==='gym'?'Gym':'Eigen')+'</span>'}
