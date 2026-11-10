@@ -181,10 +181,29 @@ section.view{padding-top:6px;display:flex;flex-direction:column;gap:var(--gap)}
 .filebtn{position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center}
 .filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:25;padding:0 max(var(--gutter),env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(var(--gutter),env(safe-area-inset-left,0px));pointer-events:none}
-.tabs-in{pointer-events:auto;max-width:520px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:6px;border-radius:99px;background:rgba(35,40,44,.92);box-shadow:0 10px 30px rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,255,255,.06);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.tabs-in{pointer-events:auto;max-width:520px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:6px;border-radius:99px;background:rgba(35,40,44,.92);box-shadow:0 10px 30px rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,255,255,.06);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 .tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:56px;padding:6px 0;border:0;background:none;color:var(--ink-3);font-size:.6875rem;font-weight:700;border-radius:99px}
 .tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .tab[aria-current=page]{background:var(--blue);color:#fff}
+input[type=time]{width:100%;min-height:46px;padding:10px 14px;background:var(--surface-3);border:1px solid transparent;border-radius:var(--r-sm)}
+input[type=time]:focus{border-color:var(--blue-2);outline:none}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:99px;background:var(--surface);position:sticky;top:0;z-index:5;box-shadow:0 0 0 6px var(--bg)}
+.seg button{min-height:44px;border:0;border-radius:99px;background:none;color:var(--ink-2);font-weight:700}
+.seg button[aria-current=true]{background:var(--blue);color:#fff}
+.moods{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.mood{min-height:44px;padding:6px 2px;border:0;border-radius:99px;background:var(--surface-3);color:var(--ink-2);font-size:.8125rem;font-weight:700}
+.mood[aria-pressed=true]{background:var(--blue);color:#fff}
+.todo{display:flex;gap:12px;align-items:flex-start}
+.tick{flex:none;width:32px;height:32px;margin-top:1px;border-radius:50%;border:2px solid var(--ink-3);background:none;color:#0C2A20;display:grid;place-items:center;font-size:1rem;font-weight:800;line-height:1}
+.tick.on{background:var(--good);border-color:var(--good)}
+.todo .tx{flex:1;min-width:0;overflow-wrap:anywhere}
+.todo .tx>b{font-weight:600}
+.todo.done .tx>b{color:var(--ink-2);text-decoration:line-through}
+.jrnl{display:block;width:100%;text-align:left;border:0;padding:16px 18px;background:var(--surface);border-radius:var(--r-lg);color:var(--ink)}
+.jrnl p{margin-top:6px;color:var(--ink-2);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.tag.miss{background:var(--bad-bg);color:var(--bad)}
+h1 .tag{vertical-align:middle;margin-left:6px}
+textarea.big{min-height:240px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(100px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--ice);color:var(--ice-ink);padding:9px 16px;border-radius:99px;font-size:.875rem;font-weight:700;opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.on{opacity:1}
 .toast.err{background:var(--bad);color:#2E1010}
@@ -222,7 +241,7 @@ function fmtNum(n,dec){return n==null?'':n.toLocaleString('nl-BE',{minimumFracti
 function realToday(){return iso(new Date())}
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){}return null}
 var TARGETS={kcal:'',protein:'',weight:'',weightDate:''};   // komen uit config/main in de database
-var COLS=['weeks','plan','logs','body','food','inbox','config'];
+var COLS=['weeks','plan','logs','body','food','inbox','config','todos','journal'];
 var S={db:null,assets:null,cache:{},loaded:{},weekId:null,today:realToday(),day:null,tab:'today',proposal:null,bodyDate:null,foodDate:null,
   confirmDel:null,timeout:false,dirty:false,customOpen:false,outbox:[],known:{},online:true,stale:false};
 COLS.forEach(function(c){S.cache[c]={}});
@@ -248,7 +267,7 @@ async function flush(){
   try{
     while(S.outbox.length){
       var it=S.outbox[0];
-      var r=await withTimeout(S.db.rpc('merge_doc',{p_collection:it.col,p_id:it.id,p_patch:it.patch}),10000);
+      var r=await withTimeout(it.del?S.db.from('docs').delete().eq('collection',it.col).eq('id',it.id):S.db.rpc('merge_doc',{p_collection:it.col,p_id:it.id,p_patch:it.patch}),10000);
       if(r&&r.error){ if(r.error.code==='PGRST301'||r.error.code==='42501'||/JWT|permission/i.test(r.error.message||'')){S.authProblem=true} throw r.error }
       S.outbox.shift();persistOutbox();
     }
@@ -342,9 +361,10 @@ function schedule(){if(isEditing()){S.dirty=true;return}cancelAnimationFrame(raf
 function selOpts(vals,cur,blank){return (blank?'<option value="">'+esc(blank)+'</option>':'')+vals.map(function(v){return '<option value="'+esc(v[0])+'"'+(String(cur)===String(v[0])?' selected':'')+'>'+esc(v[1])+'</option>'}).join('')}
 function ring(done,total){var r=36,c=2*Math.PI*r,p=total?done/total:0;return '<div class="ring"><svg viewBox="0 0 84 84"><circle class="bg" cx="42" cy="42" r="'+r+'"/><circle class="fg" cx="42" cy="42" r="'+r+'" stroke-dasharray="'+(c*p).toFixed(1)+' '+c.toFixed(1)+'"/></svg><b class="num">'+done+'/'+total+'</b></div>'}
 function renderHead(w){
+  if(S.tab==='care'){$('#head').innerHTML='<div class="top-row"><div><p class="eyebrow">'+esc(fmtLong(S.today))+'</p><h1>Zelfzorg</h1></div></div><div class="meta-row"><span class="sync" id="sync"></span></div>';setSync();return}
   var ws=weeksSorted(),i=w?ws.map(function(x){return x.id}).indexOf(w.id):-1;
   var real=realToday();
-  $('#head').innerHTML='<div class="top-row"><div><p class="eyebrow">'+esc(fmtLong(S.today))+'</p><h1>'+(w?'Week '+esc(w.n):'DST Training')+'</h1></div>'
+  $('#head').innerHTML='<div class="top-row"><div><p class="eyebrow">'+esc(fmtLong(S.today))+'</p><h1>'+(w?'Week '+esc(w.n)+(w.rep?'<span class="tag dts">herhaling</span>':'')+(w.missed?'<span class="tag miss">gemist</span>':''):'DST Training')+'</h1></div>'
    +(w?'<div class="weeknav"><button class="circ" data-act="wk" data-n="-1" aria-label="Vorige week"'+(i<=0?' disabled':'')+'>&#8249;</button><button class="circ" data-act="wk" data-n="1" aria-label="Volgende week"'+(i>=ws.length-1?' disabled':'')+'>&#8250;</button></div>':'')+'</div>'
    +'<div class="meta-row"><span class="sync" id="sync"></span><span class="spacer"></span>'+(S.today!==real?'<button class="link" data-act="today-reset">echte datum</button>':'')+'<input type="date" id="todayIn" aria-label="Vandaag is (datum aanpassen)" value="'+esc(S.today)+'"></div>';
   setSync();
@@ -352,13 +372,174 @@ function renderHead(w){
 function toTop(){var a=$('#app');if(a)a.scrollTop=0}
 document.addEventListener('focusin',function(e){if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)&&e.target.type!=='checkbox')document.body.classList.add('kb')});
 document.addEventListener('focusout',function(){setTimeout(function(){var a=document.activeElement;if(!a||!/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))document.body.classList.remove('kb')},150)});
+/* ---- Zelfzorg (to-do's en dagboek) ---- */
+var MOODS=['Slecht','Matig','Oké','Goed','Top'];
+TABS.push(['care','Zelfzorg']);
+ICON.care='<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.400-7-10a4 4 0 0 1 7-2.600A4 4 0 0 1 19 10c0 5.600-7 10-7 10z"/></svg>';
+S.careTab=ls('dst.careTab')==='journal'?'journal':'todo';S.todoDoneOpen=false;S.todoAsk=null;S.todoEdit=null;S.todoEditText='';S.todoDraft=ls('dst.todoDraft')||'';
+S.jr=null;try{S.jr=JSON.parse(ls('dst.jr')||'null')}catch(e){S.jr=null}
+function setJr(j){S.jr=j;ls('dst.jr',j?JSON.stringify(j):null)}
+function nowIso(){return new Date().toISOString()}
+function pad2(n){return (n<10?'0':'')+n}
+function localTime(d){return pad2(d.getHours())+':'+pad2(d.getMinutes())}
+function fmtStamp(s){if(!s)return '';var d=new Date(s);return isNaN(d)?'':fmtShort(iso(d))+' '+localTime(d)}
+function newId(p){return p+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
+function remove(col,id){
+  delete S.cache[col][id];
+  S.outbox.push({col:col,id:id,del:true,t:Date.now()});persistOutbox();persistCache();
+  toast(S.online?'Verwijderd':'Verwijderd, wordt gesynchroniseerd zodra je verbinding hebt');
+  setSync();flush();
+}
+function confirmTwice(cid){
+  if(S.confirmDel===cid){S.confirmDel=null;return true}
+  S.confirmDel=cid;render();
+  setTimeout(function(){if(S.confirmDel===cid){S.confirmDel=null;schedule()}},3500);
+  return false;
+}
+function moodBtns(cur,act){return '<div class="moods">'+MOODS.map(function(m){return '<button type="button" class="mood" data-act="'+act+'" data-m="'+m+'" aria-pressed="'+(cur===m)+'">'+m+'</button>'}).join('')+'</div>'}
+function todoList(){return Object.keys(S.cache.todos).map(function(id){return Object.assign({id:id},S.cache.todos[id])})}
+function todoCard(t){
+  var id=t.id,ed=S.todoEdit===id,body,acts='';
+  if(ed){
+    body='<div class="tx stack"><input type="text" id="todoEditIn" autocomplete="off" enterkeyhint="done" aria-label="To-do aanpassen" value="'+esc(S.todoEditText)+'"><div class="row"><button class="btn sm primary" data-act="todo-edit-save" data-id="'+esc(id)+'">Opslaan</button><button class="btn sm" data-act="todo-edit-cancel">Annuleren</button></div></div>';
+  }else{
+    body='<div class="tx"><b>'+esc(t.text)+'</b><p class="small muted">Toegevoegd '+esc(fmtStamp(t.created))+(t.done&&t.doneAt?' · Afgevinkt '+esc(fmtStamp(t.doneAt)):'')+'</p>'
+      +((t.done&&t.mood)?'<div class="row" style="margin-top:6px"><span class="chip">'+esc(t.mood)+'</span></div>':'')
+      +((t.done&&t.note)?'<p class="small" style="margin-top:6px">'+esc(t.note)+'</p>':'')+'</div>';
+    acts='<div class="row" style="margin:10px 0 0 44px"><button class="btn sm" data-act="todo-edit" data-id="'+esc(id)+'">Aanpassen</button>'
+      +(t.done?'<button class="btn sm" data-act="todo-toggle" data-id="'+esc(id)+'">Terug open</button>':'')
+      +'<button class="btn sm bad" data-act="todo-del" data-id="'+esc(id)+'">'+(S.confirmDel==='td'+id?'Zeker?':'Verwijderen')+'</button></div>';
+  }
+  return '<div class="card"><div class="todo'+(t.done?' done':'')+'"><button class="tick'+(t.done?' on':'')+'" data-act="todo-toggle" data-id="'+esc(id)+'" aria-label="'+(t.done?'Terug open zetten':'Afvinken')+'">'+(t.done?'&#10003;':'')+'</button>'+body+'</div>'+acts+'</div>';
+}
+function viewTodos(){
+  var all=todoList(),open=all.filter(function(t){return !t.done}).sort(function(a,b){return (a.created||'')<(b.created||'')?1:-1}),
+      done=all.filter(function(t){return t.done}).sort(function(a,b){return (a.doneAt||'')<(b.doneAt||'')?1:-1});
+  var add='<div class="card stack"><label class="lbl" for="todoIn">Nieuwe to-do</label><div class="row" style="flex-wrap:nowrap"><input type="text" id="todoIn" autocomplete="off" enterkeyhint="done" placeholder="Wat wil je doen?" value="'+esc(S.todoDraft)+'"><button class="btn primary" data-act="todo-add">Toevoegen</button></div></div>';
+  var at=S.todoAsk&&S.cache.todos[S.todoAsk],ask='';
+  if(at)ask='<div class="card stack"><div><p class="eyebrow">Afgevinkt</p><h3>'+esc(at.text)+'</h3></div><label class="lbl">Hoe voelde je je erbij? (optioneel)</label>'+moodBtns(at.mood,'todo-mood')
+    +'<textarea id="todoNote" data-todonote="'+esc(S.todoAsk)+'" placeholder="Korte notitie (optioneel)">'+esc(at.note||'')+'</textarea><div class="row"><button class="btn primary" data-act="todo-ask-close">Klaar</button></div></div>';
+  var openHtml=open.length?open.map(todoCard).join(''):'<div class="card empty"><h3>Niets open</h3><p>Voeg hierboven een to-do toe.</p></div>';
+  var doneHead='<div class="card"><div class="dayhead"><h3>Afgewerkt ('+done.length+')</h3><button class="btn sm" data-act="todo-done-toggle" aria-expanded="'+S.todoDoneOpen+'">'+(S.todoDoneOpen?'Dichtklappen':'Openklappen')+'</button></div></div>';
+  return add+ask+openHtml+doneHead+(S.todoDoneOpen?done.map(todoCard).join(''):'');
+}
+function jrList(){return Object.keys(S.cache.journal).map(function(id){return Object.assign({id:id},S.cache.journal[id])}).sort(function(a,b){var x=(a.date||'')+' '+(a.time||''),y=(b.date||'')+' '+(b.time||'');return x<y?1:x>y?-1:0})}
+function journalEditor(){
+  var j=S.jr,isNew=!j.id,dirty=(j.text||'')!==(j.orig||'');
+  return '<div class="card stack"><div class="dayhead"><h3>'+(isNew?'Nieuw dagboekitem':'Dagboekitem aanpassen')+'</h3><span class="small muted">concept blijft bewaard</span></div>'
+   +'<div class="grid2"><div><label class="lbl" for="jDate">Datum</label><input type="date" id="jDate" data-jr="date" value="'+esc(j.date)+'"></div><div><label class="lbl" for="jTime">Tijd</label><input type="time" id="jTime" data-jr="time" value="'+esc(j.time)+'"></div></div>'
+   +'<div class="stack" style="gap:6px"><label class="lbl">Stemming (optioneel)</label>'+moodBtns(j.mood,'jr-mood')+'</div>'
+   +'<div><label class="lbl" for="jText">Dagboek</label><textarea class="big" id="jText" data-jr="text" placeholder="Schrijf hier wat je kwijt wil...">'+esc(j.text)+'</textarea></div>'
+   +'<div class="row"><button class="btn primary" data-act="jr-save">Opslaan</button>'
+   +'<button class="btn" data-act="jr-cancel">'+(S.confirmDel==='jrc'?'Zeker?':(dirty?'Concept weggooien':'Sluiten'))+'</button>'
+   +(isNew?'':'<button class="btn bad" data-act="jr-del">'+(S.confirmDel==='jr'+j.id?'Zeker?':'Verwijderen')+'</button>')+'</div></div>';
+}
+function viewJournal(){
+  if(S.jr)return journalEditor();
+  var l=jrList();
+  return '<button class="btn primary" data-act="jr-new">Nieuw dagboekitem</button>'+(l.length?l.map(function(e){
+    return '<button class="jrnl" data-act="jr-open" data-id="'+esc(e.id)+'"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b>'+esc(e.date?fmtShort(e.date):'')+' · '+esc(e.time||'')+'</b>'+(e.mood?'<span class="chip">'+esc(e.mood)+'</span>':'')+'</div><p>'+esc(e.text||'')+'</p></button>'}).join('')
+    :'<div class="card empty"><h3>Nog geen dagboekitems</h3><p>Tik op "Nieuw dagboekitem" om te beginnen.</p></div>');
+}
+function viewCare(){
+  var seg='<div class="seg" role="tablist"><button data-act="care-tab" data-t="todo" aria-current="'+(S.careTab==='todo')+'">To-do’s</button><button data-act="care-tab" data-t="journal" aria-current="'+(S.careTab==='journal')+'">Dagboek</button></div>';
+  return '<section class="view">'+seg+(S.careTab==='journal'?viewJournal():viewTodos())+'</section>';
+}
+function addTodo(){
+  var inp=$('#todoIn'),text=((inp&&inp.value)||'').trim();
+  if(!text){toast('Typ eerst iets',true);return}
+  save('todos',newId('t'),{text:text,created:nowIso(),done:false,doneAt:null,mood:'',note:''});
+  S.todoDraft='';ls('dst.todoDraft',null);render();var n=$('#todoIn');if(n)n.focus();
+}
+function saveTodoEdit(id){
+  var inp=$('#todoEditIn'),text=((inp&&inp.value)||'').trim();
+  if(!text){toast('De tekst mag niet leeg zijn',true);return}
+  save('todos',id,{text:text,edited:nowIso()});S.todoEdit=null;render();
+}
+function careClick(a,el){
+  var id=el.getAttribute('data-id'),t=id&&S.cache.todos[id];
+  if(a==='care-tab'){S.careTab=el.getAttribute('data-t');ls('dst.careTab',S.careTab);render();toTop();return true}
+  if(a==='todo-add'){addTodo();return true}
+  if(a==='todo-toggle'&&t){
+    if(!t.done){save('todos',id,{done:true,doneAt:nowIso()});S.todoAsk=id}
+    else{save('todos',id,{done:false,doneAt:null});if(S.todoAsk===id)S.todoAsk=null}
+    render();return true}
+  if(a==='todo-mood'&&S.todoAsk&&S.cache.todos[S.todoAsk]){var m=el.getAttribute('data-m');save('todos',S.todoAsk,{mood:S.cache.todos[S.todoAsk].mood===m?'':m});render();return true}
+  if(a==='todo-ask-close'){S.todoAsk=null;render();return true}
+  if(a==='todo-edit'&&t){S.todoEdit=id;S.todoEditText=t.text||'';render();var e=$('#todoEditIn');if(e)e.focus();return true}
+  if(a==='todo-edit-save'){saveTodoEdit(id);return true}
+  if(a==='todo-edit-cancel'){S.todoEdit=null;render();return true}
+  if(a==='todo-del'&&t){if(confirmTwice('td'+id)){if(S.todoAsk===id)S.todoAsk=null;remove('todos',id);render()}return true}
+  if(a==='todo-done-toggle'){S.todoDoneOpen=!S.todoDoneOpen;render();return true}
+  if(a==='jr-new'){var n=new Date();setJr({id:null,date:iso(n),time:localTime(n),mood:'',text:'',orig:''});render();toTop();return true}
+  if(a==='jr-open'&&S.cache.journal[id]){var e2=S.cache.journal[id];setJr({id:id,date:e2.date||S.today,time:e2.time||'12:00',mood:e2.mood||'',text:e2.text||'',orig:e2.text||''});render();toTop();return true}
+  if(a==='jr-mood'&&S.jr){var j=S.jr,mm=el.getAttribute('data-m');j.mood=j.mood===mm?'':mm;setJr(j);render();return true}
+  if(a==='jr-save'&&S.jr){
+    var j2=S.jr;
+    if(!(j2.text||'').trim()&&!j2.mood){toast('Schrijf eerst iets of kies een stemming',true);return true}
+    var now=new Date(),jid=j2.id||newId('j'),patch={date:j2.date||iso(now),time:j2.time||localTime(now),mood:j2.mood||'',text:j2.text||'',updated:nowIso()};
+    if(!j2.id)patch.created=nowIso();
+    save('journal',jid,patch);setJr(null);S.confirmDel=null;render();toTop();return true}
+  if(a==='jr-cancel'&&S.jr){
+    var dirty=(S.jr.text||'')!==(S.jr.orig||'');
+    if(dirty&&!confirmTwice('jrc'))return true;
+    setJr(null);S.confirmDel=null;render();toTop();return true}
+  if(a==='jr-del'&&S.jr&&S.jr.id){
+    if(confirmTwice('jr'+S.jr.id)){remove('journal',S.jr.id);setJr(null);render();toTop()}return true}
+  return false;
+}
+document.addEventListener('input',function(ev){
+  var el=ev.target;if(!el||!el.getAttribute)return;
+  if(el.id==='todoIn'){S.todoDraft=el.value;ls('dst.todoDraft',el.value||null);return}
+  if(el.id==='todoEditIn'){S.todoEditText=el.value;return}
+  if(el.hasAttribute('data-jr')&&S.jr){S.jr[el.getAttribute('data-jr')]=el.value;ls('dst.jr',JSON.stringify(S.jr));return}
+  if(el.hasAttribute('data-todonote')){var nid=el.getAttribute('data-todonote');clearTimeout(timers['tn'+nid]);timers['tn'+nid]=setTimeout(function(){save('todos',nid,{note:el.value})},800)}
+});
+document.addEventListener('change',function(ev){
+  var el=ev.target;
+  if(el&&el.hasAttribute&&el.hasAttribute('data-todonote')){var nid=el.getAttribute('data-todonote');clearTimeout(timers['tn'+nid]);save('todos',nid,{note:el.value})}
+});
+document.addEventListener('keydown',function(ev){
+  if(ev.key!=='Enter'||!ev.target)return;
+  if(ev.target.id==='todoIn'){ev.preventDefault();addTodo()}
+  else if(ev.target.id==='todoEditIn'){ev.preventDefault();if(S.todoEdit)saveTodoEdit(S.todoEdit)}
+});
+/* ---- Gemiste week herhalen ---- */
+function shiftDays(arr,n){return (arr||[]).map(function(s){return Object.assign({},s,{day:addDays(s.day,n)})})}
+function repeatWeek(w){
+  var newW=w.id+'r';
+  if(S.cache.weeks[newW]){toast('Deze week is al herhaald',true);return}
+  var later=weeksSorted().filter(function(x){return x.start>w.start}),sess=sessionsOf(w),copy=Object.assign({},S.cache.weeks[w.id]);
+  later.forEach(function(x){
+    save('weeks',x.id,{start:addDays(x.start,7),sessions:shiftDays(x.sessions,7)});
+    var p=S.cache.plan[x.id];
+    if(p){
+      var patch={};
+      if(p.moves){patch.moves={};Object.keys(p.moves).forEach(function(k){if(p.moves[k])patch.moves[k]=addDays(p.moves[k],7)})}
+      if(p.blocked){patch.blocked={};Object.keys(p.blocked).forEach(function(k){if(p.blocked[k]){patch.blocked[k]=false;patch.blocked[addDays(k,7)]=true}})}
+      if(p.custom)patch.custom=shiftDays(p.custom,7);
+      if(Object.keys(patch).length)save('plan',x.id,patch);
+    }
+  });
+  var nw=Object.assign({},copy);delete nw.missed;
+  nw.title='Week '+w.n+' (herhaling)';nw.rep=w.id;nw.start=addDays(w.start,7);
+  nw.sessions=(copy.sessions||[]).map(function(s){return Object.assign({},s,{id:s.id.indexOf(w.id+'-')===0?newW+'-'+s.id.slice(w.id.length+1):newW+'-'+s.id,day:addDays(s.day,7)})});
+  save('weeks',newW,nw);
+  var st={};sess.forEach(function(s){if(s.kind!=='rest'&&!s.status)st[s.id]='skipped'});
+  save('weeks',w.id,{missed:true});
+  if(Object.keys(st).length)save('plan',w.id,{status:st});
+  save('inbox',S.today.replace(/-/g,'')+'-herhaling-'+w.id,{title:'Week '+w.n+' wordt herhaald',date:fmtDay(S.today),read:false,sources:[],
+    body:'Week '+w.n+' stond als volledig gemist. Dezelfde trainingen staan opnieuw klaar op '+fmtDay(nw.start)+' t/m '+fmtDay(addDays(nw.start,6))+'. De rest van het schema is een week opgeschoven. Week '+w.n+' blijft in je geschiedenis staan als gemist.'});
+  S.weekId=newW;S.day=null;S.proposal=null;render();toTop();
+}
 function render(){
   S.dirty=false;
   var w=curWeek();
   $('#tabs').innerHTML=TABS.map(function(t){return '<button class="tab" data-act="tab" data-t="'+t[0]+'"'+(S.tab===t[0]?' aria-current="page"':'')+'>'+ICON[t[0]]+'<span>'+t[1]+'</span></button>'}).join('');
   renderHead(w);
   var html;
-  if(S.needLogin&&!w){html=loginView()}
+  if(S.tab==='care'&&!(S.needLogin&&!w)){html=viewCare()}
+  else if(S.needLogin&&!w){html=loginView()}
   else if(!S.db&&!w){html='<section class="view"><div class="card empty"><h3>Laden...</h3></div></section>'}
   else if(!w){html='<section class="view"><div class="card empty"><h3>Nog geen schema geladen</h3><p>'+(S.loaded.weeks?'Je volgende week wordt elke zondagavond automatisch klaargezet.':'Even geduld, je gegevens worden opgehaald.'+(S.timeout?' Dit duurt langer dan normaal, controleer je verbinding.':''))+'</p></div></section>'}
   else{
@@ -367,7 +548,7 @@ function render(){
     else if(S.tab==='body')html=viewBody(w);
     else html=viewFood(w);
   }
-  $('#app').innerHTML=html+'<p class="ver">Versie 9 &middot; <button class="link" data-act="logout">Uitloggen</button></p>';
+  $('#app').innerHTML=html+'<p class="ver">Versie 10 &middot; <button class="link" data-act="logout">Uitloggen</button></p>';
   hydrate();
 }
 function srcTag(s){return '<span class="tag '+esc(s.src)+'">'+(s.src==='dts'?'DTS':s.src==='gym'?'Gym':'Eigen')+'</span>'}
@@ -403,7 +584,7 @@ function viewToday(w){
   var strip='<div class="strip">'+days.map(function(d){
     var ss=sess.filter(function(s){return s.day===d&&s.kind!=='rest'});
     return '<button class="dchip'+(d===S.day?' sel':'')+(d===S.today?' now':'')+(isBlocked(w,d)?' off':'')+'" data-act="day" data-d="'+d+'" aria-label="'+fmtShort(d)+'"><span>'+DAYS[parse(d).getDay()]+'</span><b class="num">'+parse(d).getDate()+'</b><span class="dots">'+ss.map(function(s){return '<i class="dot '+(s.status||'')+'"></i>'}).join('')+'</span></button>'}).join('')+'</div>';
-  var pend=pendingOf(w,sess).length;
+  var pend=w.missed?0:pendingOf(w,sess).length;
   var banner=pend?'<div class="banner"><span>'+pend+(pend===1?' training':' trainingen')+' niet gedaan of niet ingevuld. Wil je de rest van de week aanpassen?</span><button class="btn sm primary" data-act="plan-open">Bekijk voorstel</button></div>':'';
   var todays=sess.filter(function(s){return s.day===S.day}),real=todays.filter(function(s){return s.kind!=='rest'}),done=real.filter(function(s){return s.status==='done'}).length;
   var hero='<div class="hero"><div><p class="eyebrow">'+(S.day===S.today?'Vandaag':esc(fmtLong(S.day)))+'</p><div class="big num">'+(real.length||'Rust')+'</div><p style="font-weight:700;margin-top:4px">'+(real.length?(real.length===1?'training':'trainingen'):'geen training gepland')+'</p><div class="chips">'+todays.map(function(s){return '<span class="chip">'+esc(s.title)+'</span>'}).join('')+'</div></div>'+(real.length?ring(done,real.length):'')+'</div>';
@@ -433,7 +614,13 @@ function viewWeek(w){
   }).join('');
   var custom='<div class="card"><div class="dayhead"><h3>Eigen training toevoegen</h3><button class="btn sm" data-act="custom-toggle">'+(S.customOpen?'Sluiten':'Openen')+'</button></div>'+(S.customOpen?'<div class="stack" style="margin-top:12px"><div><label class="lbl" for="cTitle">Naam</label><input type="text" id="cTitle" placeholder="bv. Legs licht, extra run"></div><div class="grid2"><div><label class="lbl" for="cDay">Dag</label><select id="cDay">'+selOpts(days.map(function(d){return [d,fmtShort(d)]}),S.day||S.today)+'</select></div><div><label class="lbl" for="cLoad">Zwaarte</label><select id="cLoad">'+selOpts([[1,'Licht'],[2,'Middel'],[3,'Zwaar']],2)+'</select></div></div><div><label class="lbl" for="cItems">Oefeningen (een per regel, optioneel)</label><textarea id="cItems" placeholder="Squat&#10;Leg curl"></textarea></div><button class="btn primary" data-act="custom-add">Toevoegen</button></div>':'')+'</div>';
   var note='<div class="card"><label class="lbl" for="wnote">Weeknotitie en feedback</label><textarea id="wnote" data-plan-note="1" placeholder="Hoe ging de week? Wat wil je anders?">'+esc(p.note||'')+'</textarea></div>';
-  return '<section class="view"><div class="row" style="justify-content:space-between"><div><h2>Weekoverzicht</h2><p class="small muted">'+fmtDay(w.start)+' t/m '+fmtDay(addDays(w.start,6))+'</p></div><button class="btn primary" data-act="plan-open">Pas week aan</button></div>'+sum+prop+rows+custom+note+'</section>';
+  var rep='';
+  if(w.missed){var rw=weeksSorted().filter(function(x){return x.rep===w.id})[0];
+    rep='<div class="card"><span class="tag miss">Gemist</span><h3 style="margin-top:8px">Deze week is gemist</h3>'+(rw?'<p class="small muted" style="margin-top:6px">Opnieuw ingepland op '+fmtDay(rw.start)+' t/m '+fmtDay(addDays(rw.start,6))+'.</p><div class="row" style="margin-top:12px"><button class="btn sm" data-act="wk-go" data-id="'+esc(rw.id)+'">Open de herhaling</button></div>':'')+'</div>';
+  }else{
+    rep='<div class="card"><h3>Hele week gemist?</h3><p class="small muted" style="margin-top:6px">Zet dezelfde trainingen een week later opnieuw klaar. Het hele schema schuift dan een week op en deze week blijft als gemist in je geschiedenis staan.</p><div class="row" style="margin-top:12px"><button class="btn bad" data-act="week-repeat">'+(S.confirmDel==='rep'+w.id?'Zeker? Tik nogmaals':'Volledig niet gedaan, opnieuw doen')+'</button></div></div>';
+  }
+  return '<section class="view"><div class="row" style="justify-content:space-between"><div><h2>Weekoverzicht</h2><p class="small muted">'+fmtDay(w.start)+' t/m '+fmtDay(addDays(w.start,6))+'</p></div><button class="btn primary" data-act="plan-open">Pas week aan</button></div>'+sum+prop+rows+custom+note+rep+'</section>';
 }
 function bodyEntries(){return Object.keys(S.cache.body).map(function(d){return Object.assign({d:d},S.cache.body[d])}).sort(function(a,b){return a.d<b.d?1:-1})}
 function chartWeight(pts){
@@ -526,7 +713,10 @@ document.addEventListener('click',function(ev){
   if(a==='logout'){logout();return}
   if(a==='lb-close'){$('#lb').innerHTML='';return}
   if(a==='inbox-read'){save('inbox',el.getAttribute('data-id'),{read:true});schedule();return}
+  if(careClick(a,el))return;
+  if(a==='wk-go'){S.weekId=el.getAttribute('data-id');S.day=null;S.proposal=null;render();toTop();return}
   if(!w)return;
+  if(a==='week-repeat'){if(confirmTwice('rep'+w.id))repeatWeek(w);return}
   if(a==='status'){setStatus(w,el.getAttribute('data-sid'),el.getAttribute('data-v'));schedule();return}
   if(a==='cycle'){var cur=el.getAttribute('data-v'),nx={'':'done',done:'skipped',skipped:'dropped',dropped:''}[cur];setStatus(w,el.getAttribute('data-sid'),nx);schedule();return}
   if(a==='plan-open'){S.tab='week';S.proposal=propose(w,sessionsOf(w));render();toTop();return}
@@ -656,7 +846,7 @@ function applyConfig(){var c=(S.cache.config||{}).main||{};if(c.targets)Object.a
 function onRows(rows){
   var all={};COLS.forEach(function(c){all[c]={}});
   rows.forEach(function(r){if(all[r.collection])all[r.collection][r.id]=r.data});
-  S.outbox.forEach(function(it){if(all[it.col])all[it.col][it.id]=deepMerge(all[it.col][it.id],it.patch)});
+  S.outbox.forEach(function(it){if(!all[it.col])return;if(it.del)delete all[it.col][it.id];else all[it.col][it.id]=deepMerge(all[it.col][it.id],it.patch)});
   COLS.forEach(function(c){S.cache[c]=all[c];S.loaded[c]=true});
   applyConfig();persistCache();schedule();flush();
 }
@@ -665,9 +855,9 @@ function onChange(p){
   var col=row.collection;
   if(p.eventType==='DELETE'){delete S.cache[col][row.id]}
   else{
-    var d=p.new.data;
-    S.outbox.forEach(function(it){if(it.col===col&&it.id===row.id)d=deepMerge(d,it.patch)});
-    S.cache[col][row.id]=d;
+    var d=p.new.data,gone=false;
+    S.outbox.forEach(function(it){if(it.col===col&&it.id===row.id){if(it.del){gone=true;d=null}else{gone=false;d=deepMerge(d||{},it.patch)}}});
+    if(gone)delete S.cache[col][row.id];else S.cache[col][row.id]=d;
   }
   applyConfig();persistCache();schedule();
 }

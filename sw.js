@@ -1,5 +1,5 @@
 // Zet de app offline klaar. Eerst het netwerk (nieuwste versie), pas bij geen of traag netwerk de opgeslagen kopie.
-const V = 'dst-v9';
+const V = 'dst-v10';
 const SHELL = ['./', 'index.html', 'config.js', 'manifest.webmanifest', 'icon-192.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(V).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
